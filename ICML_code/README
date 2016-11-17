@@ -1,0 +1,91 @@
+Q.V. Le, J. Ngiam, A. Coates, A. Lahiri, B. Prochnow, A.Y. Ng.
+On optimization methods for deep learning.
+ICML, 2011.
+
+--------------------------------------------EXAMPLE CODE-----------------------------------------------------------------------
+
+This example MATLAB package contains code to pretrain the weights of an autoencoder model. 
+With this code, you can train a standard/sparse/local receptive field autoencoder model.
+
+INSTRUCTIONS:
+
+1. Download this package and unarchive at /*your folder*/ICML_code
+2. Download your dataset and set the path to you dataset in makebatches.m (Code provided by Ruslan Salakhutdinov and Geoff Hinton). 
+NOTE: YOU NEED TO MODIFY makebatches.m TO LOAD THE DATA FROM YOUR DATASET. 
+CURRENTLY THIS FILE LOADS THE MNIST DATASET FROM THE PATH WE DOWNLOADED IT TO. 
+MORE INSTRUCTIONS ABOUT makebatches is given below.
+3. Run the code by calling locarfAutoencoderWrapper.m giving the appropriate arguments as explained below.
+
+TRAIN:
+Since, a standard/sparse autoencoder can be treated as a special case of a 
+local receptive field autoencoder (locarf), the code is generalized for a locarf autoencoder model. 
+However, it can easily be used for all the different autoencoder models by setting approriate parameters.
+In the ICML paper, we used the MNIST dataset, but we have also
+tested the code for the STL-10 datset.
+To train you model call the function locarfAutoencoderWrapper
+
+The INPUT options to the wrapper are:
+ 	optimization option 	-       0 for SGD, 1 for L-BFGS, 2 for CG, 3 for parallel CG and 4 for parallel L-BFGS.
+ 	batchsize               -       The fixed minibatch size you want to use for pretraining the autoencoder weights.
+ 	maxinner                -       The maximum number of iterations you want to run the optimization for a fixed minibatch, 
+                                   	before swapping the current minibatch out and using another one.
+ 	gpu                     -       1 to use gpu, 0 to use cpu.
+ 	machine                 -       We ran our experiments on a cluster, so this was set to the particular machine name we ran it on. 
+                                   	Use this to distinguish between the names of the results files saved across different runs. 
+                                   	You can set this to any string you want and that will be included in the file name of the results mat file saved.
+ 	numhidden               -       number of hidden neurons in the autoencoder model.
+	lambda                  -       The weight of the weight regularization term in the objective function described in the paper.
+ 	gamma                   -       The weight of the sparsity term in the objective function described in the paper. 
+                                   	Setting this to 0 means you are runnning a standard autoencoder model. 
+ 	alpha, beta, tSgd       -       terms used in the learning rate formula for SGD. The learning rate expression we use in the code is:
+                                   	learning rate = alpha/(beta + (t_sgd/iter)). 
+                                   	This is described in detail in the supplementary document uploaded on http://ai.stanford.edu/~quocle
+    momentum                -       The momentum parameter for SGDs. This modifies the gradient using the value of the previous gradient (i.e., oldGradient)
+                                    as follows: g = g + momentum*oldGradient;
+ 	targetact               -       The target activation value for each of the neurons in the hidden layer. 
+                                   	This parameter is irrelevant if gammma=0
+ 	windowSize              -       The size of the receptive field for each hidden neuron. If your data is stored such that each image patch is a separate column, then
+                                   	setting windowSize = size(data,1) will mean you are running a standard/sparse autoencoder.
+ 	step                    -       the stride size between 2 consecutive hidden neuron's receptive fields(how many pixels we can skip), default is 1
+ 	outside                 -       1 allows the receptive fields to see only a small section of the image when at the corners 
+                                   	(so that we can have number of receptive fields = number of pixels). 0 will force all receptive field to have 					   
+                                   	the same side
+ 	rcpoptions              -       This should be a struct containing the fields: 
+                                   	a) slavecount: the number of slave machines you have, 
+                                   	b) port: the port number you are opening for the RCP calls, 
+                                            	 and where the slaves should connect to the master.
+ 	corrections             -       number of corrections to store in memory  for L-BFGS(default: 100) 
+                                   	(higher numbers converge faster but use more memory)
+ 	resume                  -       1 to resume the run from a previously saved results file, 0 to start a new run.
+ 	gpuDriver               -       1, for jacket and 2, for gpumat.  
+	savePath                -       The directory where you want to save the file
+                                   	containing the results.
+    jacketPath              -       The path to the jacket engine.
+
+
+
+A few notes about setting up slaves for the parallel runs:
+Start up MATLAB in each of the slaves and issue the command
+slaveRun(machine, port) where machine is a string denoting the name of the
+master machine and port is the port number to connect with the master over
+RCP calls  (the same number set in the rcpoptions struct).
+
+OUTPUT:
+The objective value over the train and test data sets per epoch and the
+time spent for optimization in each epoch is saved in a mat file in the
+direcory specified by savePath.
+
+QUESTIONS:
+If you have any questions about the code or any problems you are facing in getting to run well for your application, 
+feel free to email Quoc Le (quocle@cs.stanford.edu), Abhik Lahiri (alahiri@cs.stanford.edu).
+
+EXAMPLES:
+An example to illustrate the way you can call localrfAutoencoderWrapper is given in the file EXAMPLES.m
+
+ACKNOWLEDGEMENTS:
+The code in minimize.m for CG is by Carl Edward Rasmussen (http://learning.eng.cam.ac.uk/carl/). 
+The minFunc code folder included is provided by Mark Schmidt (http://www.cs.ubc.ca/~schmidtm).
+The code in plotrf.m to visualize the bases is from the MATLAB code folder available on the website of the book 
+"Natural Image Statistics — A probabilistic approach to early computational vision" by Aapo Hyvärinen, Jarmo Hurri, and Patrik O. Hoyer.
+The website is http://www.naturalimagestatistics.net/
+
