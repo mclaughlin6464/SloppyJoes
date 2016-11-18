@@ -7,6 +7,7 @@ function [verbose,verboseI,debug,doPlot,maxFunEvals,maxIter,tolFun,tolX,method,.
     minFunc_processInputOptions(o)
 
 % Constants
+GEOHACK = -1;
 SD = 0;
 CSD = 1;
 BB = 2;
@@ -58,6 +59,8 @@ HessianIter = 1;
 if isfield(o,'METHOD')
     m = upper(o.METHOD);
     switch(m)
+        case 'GEOHACK'
+            method = GEOHACK;
         case 'TENSOR'
             method = TENSOR;
         case 'NEWTON'
