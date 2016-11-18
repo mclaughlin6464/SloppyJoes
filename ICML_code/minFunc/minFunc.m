@@ -241,6 +241,7 @@ end
     minFunc_processInputOptions(options);
 
 % Constants
+GEOHACK = -1;
 SD = 0;
 CSD = 1;
 BB = 2;
@@ -367,6 +368,9 @@ end
 
 % Perform up to a maximum of 'maxIter' descent steps:
 for i = 1:maxIter
+    if method == GEOHACK
+        break;
+    end
 
     % ****************** COMPUTE DESCENT DIRECTION *****************
 
@@ -1103,6 +1107,16 @@ for i = 1:maxIter
         break;
     end
 
+end
+
+if method == GEOHACK
+    % here we go
+    
+    % input processing
+    
+    results = geohack(funObj, x0, options, varargin);
+    
+    % output processing
 end
 
 if verbose
