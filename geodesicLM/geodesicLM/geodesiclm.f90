@@ -318,8 +318,10 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
   !MINE Initialize variable storage.
   s(:,:) = 0.0
-  y(:,:) = 0.0
+  y(:,:,:) = 0.0
   n_accepted = 0
+
+  print *,'m',m
 
   do row=1,n 
       do col=1,n
@@ -431,7 +433,6 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      IF (accepted + ibroyden .LE. 0 .AND. .NOT. jac_uptodate) jac_force_update = .TRUE.  !Force jac update after too many failed attempts
 
      IF (accepted .GT. 0 .AND. ibroyden .GT. 0 .AND. .NOT. jac_force_update) THEN !! Rank deficient update of jacobian matrix
-        old_fjac = fjac!not sure if this works as I'd like...
         CALL UPDATEJAC(m,n,fjac, fvec, fvec_new, acc, v, a)
         jac_uptodate = .FALSE.
      ENDIF
@@ -440,7 +441,14 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         print *,'Accepted!'
         fvec = fvec_new
         n_accepted = n_accepted+1
-        CALL update_storage(n,k,n_accepted, s, y, x_new-x, fjac-old_fjac)
+        print *,x
+        print *,x_new
+        print *,old_fjac
+        print *,fjac
+        if (n_accepted > 1) then
+            CALL update_storage(n,k,n_accepted-1, s, y, x_new-x, fjac-old_fjac)
+        end if
+        old_fjac = fjac!not sure if this works as I'd like...
         x = x_new
         vold = v
         C = Cnew
@@ -516,7 +524,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !! metric aray
         g = jtj + lam*dtd
         do row=1,n
-            H_0(row,row) = 0.0001/g(row,row)
+            H_0(row,row) = 1.0/g(row,row)
         end do
 
         !! Cholesky decomposition
@@ -534,14 +542,14 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         v = -1.0d+0*MATMUL(fvec, fjac)
         print *,'Velocity'
         print *,'d old',v
-        !CALL DPOTRS('U', n, 1, g, n, v, n, info)
+        CALL DPOTRS('U', n, 1, g, n, v, n, info)
 
         ! TODO need an info here i think.
-        if (n_accepted .LE. k) then
-            CALL lbfgs(n, H_0, n_accepted, s, y, v)
-        else
-            CALL lbfgs(n, H_0, k, s, y, v)
-        end if
+        !if (n_accepted .LE. k) then
+        !    CALL lbfgs(n, H_0, n_accepted, s, y, v)
+        !else
+        !    CALL lbfgs(n, H_0, k, s, y, v)
+        !end if
 
         print *,'d new',v
 
@@ -579,14 +587,16 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
               a = -1.0d+0*MATMUL(acc, fjac)
               print *,'Acceleration'
               print *,'d old', a
-              !CALL DPOTRS('U', n, 1, g, n, a, n, info)
-              if (n_accepted.LE. k) then
-                  CALL lbfgs(n, H_0, n_accepted, s, y, a)
-              else
-                  CALL lbfgs(n, H_0, k, s, y, a)
-              endif
+              CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              !if (n_accepted.LE. k) then
+              !    CALL lbfgs(n, H_0, n_accepted, s, y, a)
+              !else
+              !    CALL lbfgs(n, H_0, k, s, y, a)
+              !endif
 
               print *,'d new', a
+
+              a = 0.0
 
               !!a = -1.0d+0*MATMUL(g,MATMUL(acc,fjac))
            ELSE 

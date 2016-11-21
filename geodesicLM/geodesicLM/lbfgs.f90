@@ -68,8 +68,8 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
 
     INTEGER :: i
 
-!    print *,'s',s
-!    print *,'y',y
+    !print *,'s',s(1,:)
+    !print *,'y',y(1,:)
 
     if (istep .LE. k) then
         !no shuffling needed
@@ -84,8 +84,8 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
     y(:,k) = d_jac
     end if
 
-!    print *,'s',s
-!    print *,'y',y
+    !print *,'s',s(1,:)
+    !print *,'y',y(1,:)
 !    print *,' '
 
 END SUBROUTINE update_storage 

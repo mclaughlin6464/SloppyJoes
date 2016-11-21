@@ -264,6 +264,7 @@ def geodesiclm(func, x0, **kwargs):
         _m = kwargs['m']
     else:
         _m = len(func(x0,*func_extra_args))
+    print _m
 
     ## LBFGS-memory
     if kwargs.has_key('k'):
