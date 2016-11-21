@@ -265,6 +265,12 @@ def geodesiclm(func, x0, **kwargs):
     else:
         _m = len(func(x0,*func_extra_args))
 
+    ## LBFGS-memory
+    if kwargs.has_key('k'):
+        k = kwargs['k']
+    else:
+        k = 10
+
     fvec = numpy.empty((_m,))
     fjac = numpy.empty((_m,len(x0)),order = 'F')
 
@@ -278,7 +284,7 @@ def geodesiclm(func, x0, **kwargs):
 
 
     _geodesiclm.geodesiclm(func, jacobian, Avv,
-                           x, fvec, fjac,
+                           x, fvec, fjac,k,
                            callback, info,
                            analytic_jac, analytic_Avv,
                            center_diff, h1, h2,

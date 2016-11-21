@@ -19,7 +19,7 @@ FFLAGS = -o2 -m64 -fPIC
 	$(F) $(FFLAGS) -Iinclude -c $< -o $*.o
 	$(AR) $(ARFLAGS) $@ $*.o
 
-OBJS = accept.o dpmpar.o fdavv.o fdjac.o lambda.o geodesiclm.o updatejac.o converge.o dgqt.o destsv.o
+OBJS = accept.o dpmpar.o fdavv.o fdjac.o lambda.o lbfgs.o geodesiclm.o updatejac.o converge.o dgqt.o destsv.o
 
 libgeodesiclm.a: $(OBJS)
 	$(AR) -r $@ $(OBJS)

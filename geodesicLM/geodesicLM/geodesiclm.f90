@@ -4,7 +4,7 @@
 ! version 1.1
 
 SUBROUTINE geodesiclm(func, jacobian, Avv, &
-     & x, fvec, fjac, n, m, &
+     & x, fvec, fjac, n, m,k,&
      & callback, info, &
      & analytic_jac, analytic_Avv, &
      & center_diff, h1, h2,&
@@ -109,6 +109,8 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 !
 !    m an input integer set to the number of functions
 !
+!    k an input integer to set the number of saved steps for L-BFGS
+!
 !    callback a user supplied subroutine to be called after each iteration of the
 !    algorithm.  
 !    callback should be written as follows
@@ -190,7 +192,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 !    xtol an input double precision.  The method will terminate when parameters change by
 !    less than xtol.
 !
-!    xrtol an input double precision.  The method will terminate if the relative change in
+
 !    each of the parameters is less than xrtol.
 !
 !    ftol an input double precision.  The method will termiante if the Cost fails to decrease
@@ -248,7 +250,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   EXTERNAL func, jacobian, Avv, callback
 
   REAL (KIND=8) x(n), fvec(m), fjac(m,n)
-  INTEGER n, m
+  INTEGER n, m, k
   LOGICAL analytic_jac, analytic_Avv, center_diff
   REAL (KIND=8) h1, h2
   REAL (KIND=8) dtd(n,n)
@@ -262,13 +264,15 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   REAL (KIND=8) avmax, initialfactor, factoraccept, factorreject
 
   !! Internal parameters
-
   REAL (KIND=8) acc(m), v(n), vold(n), a(n), lam, delta, cos_alpha, av
   REAL (KIND=8) fvec_new(m), fvec_best(m), C, Cnew, Cbest, Cold
   REAL (KIND=8) x_new(n), x_best(n)
   REAL (KIND=8) jtj(n,n), g(n,n)
+  REAL (KIND=8) H_0(n,n)
   REAL (KIND=8) temp1, temp2, pred_red, dirder, actred, rho, a_param
+  REAL (KIND=8) s(n, k), y(n,k), old_fjac(m,n)
   INTEGER i, j, istep, accepted, counter
+  INTEGER row,col,n_accepted
   
   character(16) :: converged_info(-11:7)
   LOGICAL jac_uptodate, jac_force_update, valid_result
@@ -311,6 +315,21 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   cos_alpha = 1.0d+0
   av = 0.0d+0
   a_param = 0.5
+
+  !MINE Initialize variable storage.
+  s(:,:) = 0.0
+  y(:,:) = 0.0
+  n_accepted = 0
+
+  do row=1,n 
+      do col=1,n
+          if (ABS(row-col)<0.1) then
+              H_0(row, col) = 1.0
+          else
+              H_0(row,col) = 0.0
+          end if
+      end do
+  end do
 
   accepted = 0
   counter = 0
@@ -398,7 +417,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
   !! Main Loop
   main: DO istep=1, maxiter
-     
+
      info = 0
      CALL callback(m,n,x,v,a,fvec,fjac,acc,lam,dtd,fvec_new,accepted,info)
      IF( info .NE. 0) THEN
@@ -412,12 +431,16 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      IF (accepted + ibroyden .LE. 0 .AND. .NOT. jac_uptodate) jac_force_update = .TRUE.  !Force jac update after too many failed attempts
 
      IF (accepted .GT. 0 .AND. ibroyden .GT. 0 .AND. .NOT. jac_force_update) THEN !! Rank deficient update of jacobian matrix
+        old_fjac = fjac!not sure if this works as I'd like...
         CALL UPDATEJAC(m,n,fjac, fvec, fvec_new, acc, v, a)
         jac_uptodate = .FALSE.
      ENDIF
 
      IF( accepted .GT. 0) THEN !! Accepted step
+        print *,'Accepted!'
         fvec = fvec_new
+        n_accepted = n_accepted+1
+        CALL update_storage(n,k,n_accepted, s, y, x_new-x, fjac-old_fjac)
         x = x_new
         vold = v
         C = Cnew
@@ -492,8 +515,13 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !! Propose Step
         !! metric aray
         g = jtj + lam*dtd
+        do row=1,n
+            H_0(row,row) = 0.0001/g(row,row)
+        end do
+
         !! Cholesky decomposition
-        CALL DPOTRF('U', n, g, n, info)
+        !CALL DPOTRF('U', n, g, n, info)
+        info = 0
         !! CALL inv(n, g, info)
      ELSE !! If nans in jacobian
         converged = -11
@@ -504,8 +532,19 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      IF(info .EQ. 0) THEN  !! If matrix decomposition successful:
         !! v = -1.0d+0*MATMUL(g,MATMUL(fvec,fjac)) ! velocity
         v = -1.0d+0*MATMUL(fvec, fjac)
-        CALL DPOTRS('U', n, 1, g, n, v, n, info)
-        
+        print *,'Velocity'
+        print *,'d old',v
+        !CALL DPOTRS('U', n, 1, g, n, v, n, info)
+
+        ! TODO need an info here i think.
+        if (n_accepted .LE. k) then
+            CALL lbfgs(n, H_0, n_accepted, s, y, v)
+        else
+            CALL lbfgs(n, H_0, k, s, y, v)
+        end if
+
+        print *,'d new',v
+
         ! Calcualte the predicted reduction and the directional derivative -- useful for updating lam methods
         temp1 = 0.5d+0*DOT_PRODUCT(v,MATMUL(jtj, v))/C
         temp2 = 0.5d+0*lam*DOT_PRODUCT(v,MATMUL(dtd,v))/C
@@ -538,7 +577,17 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
            END DO checkAccel
            IF (valid_result ) THEN
               a = -1.0d+0*MATMUL(acc, fjac)
-              CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              print *,'Acceleration'
+              print *,'d old', a
+              !CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              if (n_accepted.LE. k) then
+                  CALL lbfgs(n, H_0, n_accepted, s, y, a)
+              else
+                  CALL lbfgs(n, H_0, k, s, y, a)
+              endif
+
+              print *,'d new', a
+
               !!a = -1.0d+0*MATMUL(g,MATMUL(acc,fjac))
            ELSE 
               a(:) = 0.0d+0 !! If nans in acc, we will ignore the acceleration term
