@@ -318,7 +318,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
   !MINE Initialize variable storage.
   s(:,:) = 0.0
-  y(:,:,:) = 0.0
+  y(:,:) = 0.0
   n_accepted = 0
 
   print *,'m',m
