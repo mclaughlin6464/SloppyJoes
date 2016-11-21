@@ -528,7 +528,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         end do
 
         !! Cholesky decomposition
-        !CALL DPOTRF('U', n, g, n, info)
+        CALL DPOTRF('U', n, g, n, info)
         info = 0
         !! CALL inv(n, g, info)
      ELSE !! If nans in jacobian
@@ -536,20 +536,18 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         exit main
      ENDIF
 
-
      IF(info .EQ. 0) THEN  !! If matrix decomposition successful:
         !! v = -1.0d+0*MATMUL(g,MATMUL(fvec,fjac)) ! velocity
         v = -1.0d+0*MATMUL(fvec, fjac)
         print *,'Velocity'
         print *,'d old',v
-        CALL DPOTRS('U', n, 1, g, n, v, n, info)
+        !CALL DPOTRS('U', n, 1, g, n, v, n, info)
 
-        ! TODO need an info here i think.
-        !if (n_accepted .LE. k) then
-        !    CALL lbfgs(n, H_0, n_accepted, s, y, v)
-        !else
-        !    CALL lbfgs(n, H_0, k, s, y, v)
-        !end if
+        if (n_accepted .LE. k) then
+           CALL lbfgs(n, H_0, n_accepted, s, y, v)
+        else
+            CALL lbfgs(n, H_0, k, s, y, v)
+        end if
 
         print *,'d new',v
 
@@ -587,12 +585,12 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
               a = -1.0d+0*MATMUL(acc, fjac)
               print *,'Acceleration'
               print *,'d old', a
-              CALL DPOTRS('U', n, 1, g, n, a, n, info)
-              !if (n_accepted.LE. k) then
-              !    CALL lbfgs(n, H_0, n_accepted, s, y, a)
-              !else
-              !    CALL lbfgs(n, H_0, k, s, y, a)
-              !endif
+              !CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              if (n_accepted.LE. k) then
+                  CALL lbfgs(n, H_0, n_accepted, s, y, a)
+              else
+                  CALL lbfgs(n, H_0, k, s, y, a)
+              endif
 
               print *,'d new', a
 
