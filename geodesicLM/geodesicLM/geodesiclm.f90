@@ -192,7 +192,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 !    xtol an input double precision.  The method will terminate when parameters change by
 !    less than xtol.
 !
-!    xrtol an input double precision.  The method will terminate if the relative change in
+
 !    each of the parameters is less than xrtol.
 !
 !    ftol an input double precision.  The method will termiante if the Cost fails to decrease
@@ -272,7 +272,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   REAL (KIND=8) temp1, temp2, pred_red, dirder, actred, rho, a_param
   REAL (KIND=8) s(n, k), y(n,k), old_fjac(m,n)
   INTEGER i, j, istep, accepted, counter
-  INTEGER row,col
+  INTEGER row,col,n_accepted
   
   character(16) :: converged_info(-11:7)
   LOGICAL jac_uptodate, jac_force_update, valid_result
@@ -319,6 +319,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   !MINE Initialize variable storage.
   s(:,:) = 0.0
   y(:,:) = 0.0
+  n_accepted = 0
 
   do row=1,n 
       do col=1,n
@@ -417,8 +418,6 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   !! Main Loop
   main: DO istep=1, maxiter
 
-     print *, istep
-     
      info = 0
      CALL callback(m,n,x,v,a,fvec,fjac,acc,lam,dtd,fvec_new,accepted,info)
      IF( info .NE. 0) THEN
@@ -438,8 +437,10 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      ENDIF
 
      IF( accepted .GT. 0) THEN !! Accepted step
+        print *,'Accepted!'
         fvec = fvec_new
-        CALL update_storage(n,k,istep, s, y, x_new-x, fjac-old_fjac)
+        n_accepted = n_accepted+1
+        CALL update_storage(n,k,n_accepted, s, y, x_new-x, fjac-old_fjac)
         x = x_new
         vold = v
         C = Cnew
@@ -514,6 +515,10 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !! Propose Step
         !! metric aray
         g = jtj + lam*dtd
+        do row=1,n
+            H_0(row,row) = 0.0001/g(row,row)
+        end do
+
         !! Cholesky decomposition
         !CALL DPOTRF('U', n, g, n, info)
         info = 0
@@ -527,11 +532,19 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      IF(info .EQ. 0) THEN  !! If matrix decomposition successful:
         !! v = -1.0d+0*MATMUL(g,MATMUL(fvec,fjac)) ! velocity
         v = -1.0d+0*MATMUL(fvec, fjac)
+        print *,'Velocity'
+        print *,'d old',v
         !CALL DPOTRS('U', n, 1, g, n, v, n, info)
 
         ! TODO need an info here i think.
-        CALL lbfgs(n, H_0, k, s, y, v)
-        
+        if (n_accepted .LE. k) then
+            CALL lbfgs(n, H_0, n_accepted, s, y, v)
+        else
+            CALL lbfgs(n, H_0, k, s, y, v)
+        end if
+
+        print *,'d new',v
+
         ! Calcualte the predicted reduction and the directional derivative -- useful for updating lam methods
         temp1 = 0.5d+0*DOT_PRODUCT(v,MATMUL(jtj, v))/C
         temp2 = 0.5d+0*lam*DOT_PRODUCT(v,MATMUL(dtd,v))/C
@@ -564,8 +577,17 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
            END DO checkAccel
            IF (valid_result ) THEN
               a = -1.0d+0*MATMUL(acc, fjac)
+              print *,'Acceleration'
+              print *,'d old', a
               !CALL DPOTRS('U', n, 1, g, n, a, n, info)
-              CALL lbfgs(n, H_0, k, s, y, a)
+              if (n_accepted.LE. k) then
+                  CALL lbfgs(n, H_0, n_accepted, s, y, a)
+              else
+                  CALL lbfgs(n, H_0, k, s, y, a)
+              endif
+
+              print *,'d new', a
+
               !!a = -1.0d+0*MATMUL(g,MATMUL(acc,fjac))
            ELSE 
               a(:) = 0.0d+0 !! If nans in acc, we will ignore the acceleration term

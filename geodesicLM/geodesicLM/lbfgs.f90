@@ -21,6 +21,10 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
     INTEGER :: i,j
     REAL (KIND=8) ::  a(k), b(k), rho(k) 
 
+!    print *,'d old',d
+!    print *, n,k
+!    print *,'s',s
+!    print *,'y',y
 
     do i=1,k-1
         !print *, y(:,i), s(:,i)
@@ -48,6 +52,9 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
        !print *,'d',d
     end do
 
+!    print *,'d new',d
+!    print *,' '
+
 END SUBROUTINE lbfgs
 
 SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
@@ -61,6 +68,9 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
 
     INTEGER :: i
 
+!    print *,'s',s
+!    print *,'y',y
+
     if (istep .LE. k) then
         !no shuffling needed
         s(:,istep) = d_x
@@ -73,5 +83,9 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
     s(:,k) = d_x
     y(:,k) = d_jac
     end if
+
+!    print *,'s',s
+!    print *,'y',y
+!    print *,' '
 
 END SUBROUTINE update_storage 
