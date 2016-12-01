@@ -9,7 +9,7 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
 !   subroutine lbfgs
 !   
 !   Approximately apply the inverse Hessian to d.
-!   m: dim of H_0 (mxm) and d (m)
+!   n: dim of H_0 (nxn) and d (n)
 !   d: Vector to mupltiply by. On exit, the result of the multiplication
 !
 !*****************************************************************
@@ -40,10 +40,9 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
     end do
 
     !print *,'d',d
-    !print *,'H0', H_0
-
+    print *,'H0', H_0(1,1)
     d = MATMUL(H_0, d)
-    !print *,'d',d
+    print *,'d',d
 
     do i=1,k-1
        b(i) = rho(i)*(DOT_PRODUCT(y(:,i), d)) 

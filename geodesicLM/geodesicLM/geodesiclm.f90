@@ -270,9 +270,13 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   REAL (KIND=8) jtj(n,n), g(n,n)
   REAL (KIND=8) H_0(n,n)
   REAL (KIND=8) temp1, temp2, pred_red, dirder, actred, rho, a_param
-  REAL (KIND=8) s(n, k), y(n,k), old_fjac(m,n)
+
+
+  !! Our paramaters
+  REAL (KIND=8) s(n, k), y(n,k), neg_delta_C(n), neg_delta_C_old(n)
   INTEGER i, j, istep, accepted, counter
   INTEGER row,col,n_accepted
+  
   
   character(16) :: converged_info(-11:7)
   LOGICAL jac_uptodate, jac_force_update, valid_result
@@ -316,17 +320,20 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   av = 0.0d+0
   a_param = 0.5
 
-  !MINE Initialize variable storage.
+  !!! Initialize our variable storage.
+  k = 10
   s(:,:) = 0.0
   y(:,:) = 0.0
   n_accepted = 0
+  neg_delta_C(:) = 0.0
+  neg_delta_C_old(:) = 0.0
 
   print *,'m',m
 
   do row=1,n 
       do col=1,n
           if (ABS(row-col)<0.1) then
-              H_0(row, col) = 1.0
+              H_0(row, col) = 0.001!1.0
           else
               H_0(row,col) = 0.0
           end if
@@ -417,7 +424,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      IF( converged .EQ. 0) CALL TrustRegion(n,m,fvec,fjac,dtd,delta,lam) !! Do not call this if there were nans in either fvec or fjac
   ENDIF
 
-  !! Main Loop
+  !!!!!!!!!!! Main Loop
   main: DO istep=1, maxiter
 
      info = 0
@@ -438,17 +445,20 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      ENDIF
 
      IF( accepted .GT. 0) THEN !! Accepted step
-        print *,'Accepted!'
+      
+        print *,'Accepted (previous step?)!'
+        
+        !!! update our lbfgs params 
         fvec = fvec_new
         n_accepted = n_accepted+1
         print *,x
         print *,x_new
-        print *,old_fjac
         print *,fjac
+
         if (n_accepted > 1) then
-            CALL update_storage(n,k,n_accepted-1, s, y, x_new-x, fjac-old_fjac)
+            CALL update_storage(n,k,n_accepted-1, s, y, x_new-x, neg_delta_C_old - neg_delta_C)
         end if
-        old_fjac = fjac!not sure if this works as I'd like...
+        neg_delta_C_old = neg_delta_C
         x = x_new
         vold = v
         C = Cnew
@@ -523,6 +533,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !! Propose Step
         !! metric aray
         g = jtj + lam*dtd
+        print *,'UPDATE H_0'
         do row=1,n
             H_0(row,row) = 1.0/g(row,row)
         end do
@@ -536,15 +547,19 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         exit main
      ENDIF
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIRST DPOTRS: VELOCITY CALC !!!!!!!!!!!!!!!!!!!
+
+
      IF(info .EQ. 0) THEN  !! If matrix decomposition successful:
         !! v = -1.0d+0*MATMUL(g,MATMUL(fvec,fjac)) ! velocity
         v = -1.0d+0*MATMUL(fvec, fjac)
+        neg_delta_C = v 
         print *,'Velocity'
         print *,'d old',v
         !CALL DPOTRS('U', n, 1, g, n, v, n, info)
 
         if (n_accepted .LE. k) then
-           CALL lbfgs(n, H_0, n_accepted, s, y, v)
+            CALL lbfgs(n, H_0, n_accepted, s, y, v)
         else
             CALL lbfgs(n, H_0, k, s, y, v)
         end if
@@ -581,6 +596,9 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
                  EXIT checkAccel
               END IF
            END DO checkAccel
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SECOND DPOTRS CALL: ACCELERATION CALC !!!!!!!!!!!!!!!!!
+
            IF (valid_result ) THEN
               a = -1.0d+0*MATMUL(acc, fjac)
               print *,'Acceleration'
@@ -594,7 +612,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
               print *,'d new', a
 
-              a = 0.0
+              !a = 0.0 !! hack out acc for now
 
               !!a = -1.0d+0*MATMUL(g,MATMUL(acc,fjac))
            ELSE 
