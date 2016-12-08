@@ -1,4 +1,5 @@
 from geodesiclm import geodesiclm
+from time import time
 import numpy as np
 
 
@@ -36,8 +37,8 @@ def beale(x):
 
 
 #x0 = np.array(np.random.rand(2))
-#x0 = np.array([1-1*(np.random.rand()-0.5) for i in xrange(2)])
-x0 = np.array([1, -1])
+np.random.seed(int(time()))
+x0 = np.array([1-0.2*(np.random.rand()-0.5) for i in xrange(2)])
 xf, info = geodesiclm(rosenbrock, x0, args = (), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0)
 
 print info

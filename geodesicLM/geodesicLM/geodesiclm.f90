@@ -321,7 +321,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   a_param = 0.5
 
   !!! Initialize our variable storage.
-  k = 10
+  k = 10 
   s(:,:) = 0.0
   y(:,:) = 0.0
   n_accepted = 0
@@ -546,10 +546,8 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
             H_0(row,row) = 1.0/g(row,row)
         end do
 
-        print *,'dtd'
         do row=1,n
-            print *,1.0-1.0/(lam*dtd(row,row))
-            dtd_inv(row,row) = 1.0-1.0/(lam*dtd(row,row))
+            dtd_inv(row,row) = -1.0/(lam*dtd(row,row))
         end do
 
 
@@ -579,14 +577,16 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         else
             CALL lbfgs(n, H_0, k, s, y, v)
         end if
-        !if (lam .GE. 1.0) then
-        !    v = -1.0d+0*MATMUL(fvec, fjac) - v
-            !v = -1.0d+0*MATMUL(fvec, fjac)
+        if (lam .GE. 100.0) then
+            v = -1.0d+0*MATMUL(fvec, fjac)
+            v = MATMUL(dtd_inv, v)
+        elseif (lam .GE. 10.0) then
+            v = -1.0d+0*MATMUL(fvec, fjac) - v
             !v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
-        !elseif (lam  .GE. 1.0) then
-        !    v = -1.0d+0*MATMUL(fvec, fjac)
-        !    v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
-        !endif
+        elseif (lam  .GE. 1.0) then
+            v = -1.0d+0*MATMUL(fvec, fjac)
+            v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
+        endif
         !elseif (lam .GE. 0.01) then
         !    print *,'d new',v
         !    v = MATMUL(dtd_inv, v)
@@ -634,12 +634,22 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
               a = -1.0d+0*MATMUL(acc, fjac)
               !print *,'Acceleration'
               !print *,'d old', a
-              CALL DPOTRS('U', n, 1, g, n, a, n, info)
-              !if (n_accepted.LE. k) then
-              !    CALL lbfgs(n, H_0, n_accepted, s, y, a)
-              !else
-              !    CALL lbfgs(n, H_0, k, s, y, a)
-              !endif
+              !CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              if (n_accepted .LE. k) then
+                  CALL lbfgs(n, H_0, n_accepted, s, y, a)
+              else
+                  CALL lbfgs(n, H_0, k, s, y, a)
+              endif
+              if (lam .GE. 100.0) then
+                  a = -1.0d+0*MATMUL(acc, fjac)
+                  a = MATMUL(dtd_inv, a)
+              elseif (lam .GE. 10.0) then
+                  a = -1.0d+0*MATMUL(acc, fjac) - a
+                  !v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
+              elseif (lam  .GE. 1.0) then
+                  a = -1.0d+0*MATMUL(acc, fjac)
+                  a = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, a)))
+              endif
 
               !print *,'d new', a
 
