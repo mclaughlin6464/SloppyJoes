@@ -8,7 +8,7 @@ def rosenbrock(x, A = 100):
  
     n = x.shape[0]
     outs = []
-    for i in range(n-1):
+    for i in xrange(n-1):
         outs.append(1-x[i])
         outs.append(A * (x[i+1] - x[i])**2)
 
@@ -18,7 +18,7 @@ def rosenbrock(x, A = 100):
 def paraboloid(x):
     """ Parabaloid  """
     """ Solution all 0's."""
-    return np.array([sum([xx**2 for xx in x]) ] )
+    return np.array(x)
 
 def beale(x):
     """ Beale function """
@@ -35,8 +35,8 @@ def beale(x):
     return np.array( [v1, v2, v3] ) 
 
 
-x0 = np.array([ 1.0, -1.0, 1.0])#, -5.0])
-xf, info = geodesiclm(paraboloid, x0, args = (), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0)
+x0 = np.array(np.random.rand(100))
+xf, info = geodesiclm(paraboloid, x0, args = (), full_output=1, print_level = 1, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0)
 
 print info
 
