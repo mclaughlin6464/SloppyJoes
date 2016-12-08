@@ -1,4 +1,4 @@
-! -*- f90 -*-
+
 ! file leastsq.f90
 ! Main Geodesic-Bold-BroydenUpdate-Levenberg-Marquardt routine
 ! version 1.1
@@ -273,7 +273,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
 
   !! Our paramaters
-  REAL (KIND=8) s(n, k), y(n,k), neg_delta_C(n), neg_delta_C_old(n)
+  REAL (KIND=8) s(n, k), y(n,k), neg_delta_C(n), neg_delta_C_old(n), dtd_inv(n,n), ident(n,n)
   INTEGER i, j, istep, accepted, counter
   INTEGER row,col,n_accepted
   
@@ -328,14 +328,16 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   neg_delta_C(:) = 0.0
   neg_delta_C_old(:) = 0.0
 
-  print *,'m',m
+  !print *,'m',m
 
   do row=1,n 
       do col=1,n
           if (ABS(row-col)<0.1) then
               H_0(row, col) = 0.001!1.0
+              ident(row,col) = 1.0
           else
               H_0(row,col) = 0.0
+              ident(row, col) = 0.0
           end if
       end do
   end do
@@ -446,14 +448,14 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
      IF( accepted .GT. 0) THEN !! Accepted step
       
-        print *,'Accepted (previous step?)!'
+        !print *,'Accepted (previous step?)!'
         
         !!! update our lbfgs params 
         fvec = fvec_new
         n_accepted = n_accepted+1
-        print *,x
-        print *,x_new
-        print *,fjac
+        !print *,x
+        !print *,x_new
+        !print *,fjac
 
         if (n_accepted > 1) then
             CALL update_storage(n,k,n_accepted-1, s, y, x_new-x, neg_delta_C_old - neg_delta_C)
@@ -532,11 +534,24 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
         !! Propose Step
         !! metric aray
+        print *,'Lambda'
+        print *,lam
+        print *,'JtJ'
+        print *,jtj(1,1)
+        print *,'DtD'
+        print *,dtd(1,1)
         g = jtj + lam*dtd
-        print *,'UPDATE H_0'
+        !print *,'UPDATE H_0'
         do row=1,n
             H_0(row,row) = 1.0/g(row,row)
         end do
+
+        print *,'dtd'
+        do row=1,n
+            print *,1.0-1.0/(lam*dtd(row,row))
+            dtd_inv(row,row) = 1.0-1.0/(lam*dtd(row,row))
+        end do
+
 
         !! Cholesky decomposition
         CALL DPOTRF('U', n, g, n, info)
@@ -554,17 +569,33 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !! v = -1.0d+0*MATMUL(g,MATMUL(fvec,fjac)) ! velocity
         v = -1.0d+0*MATMUL(fvec, fjac)
         neg_delta_C = v 
-        print *,'Velocity'
-        print *,'d old',v
+        !print *,'Velocity'
+        !print *,'d old',v
         !CALL DPOTRS('U', n, 1, g, n, v, n, info)
-
+        !print *,'d new',v
+        !v = -1.0d+0*MATMUL(fvec, fjac)
         if (n_accepted .LE. k) then
             CALL lbfgs(n, H_0, n_accepted, s, y, v)
         else
             CALL lbfgs(n, H_0, k, s, y, v)
         end if
-
-        print *,'d new',v
+        !if (lam .GE. 1.0) then
+        !    v = -1.0d+0*MATMUL(fvec, fjac) - v
+            !v = -1.0d+0*MATMUL(fvec, fjac)
+            !v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
+        !elseif (lam  .GE. 1.0) then
+        !    v = -1.0d+0*MATMUL(fvec, fjac)
+        !    v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
+        !endif
+        !elseif (lam .GE. 0.01) then
+        !    print *,'d new',v
+        !    v = MATMUL(dtd_inv, v)
+        !    print *,'d new',v
+        !    CALL DPOTRF('U', n, jtj, n, info)
+        !    CALL DPOTRS('U', n, 1, jtj, n, v, n, info)
+        !    print *,'d new',v
+        !end if
+        !else, keep it as is
 
         ! Calcualte the predicted reduction and the directional derivative -- useful for updating lam methods
         temp1 = 0.5d+0*DOT_PRODUCT(v,MATMUL(jtj, v))/C
@@ -601,16 +632,16 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
            IF (valid_result ) THEN
               a = -1.0d+0*MATMUL(acc, fjac)
-              print *,'Acceleration'
-              print *,'d old', a
-              !CALL DPOTRS('U', n, 1, g, n, a, n, info)
-              if (n_accepted.LE. k) then
-                  CALL lbfgs(n, H_0, n_accepted, s, y, a)
-              else
-                  CALL lbfgs(n, H_0, k, s, y, a)
-              endif
+              !print *,'Acceleration'
+              !print *,'d old', a
+              CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              !if (n_accepted.LE. k) then
+              !    CALL lbfgs(n, H_0, n_accepted, s, y, a)
+              !else
+              !    CALL lbfgs(n, H_0, k, s, y, a)
+              !endif
 
-              print *,'d new', a
+              !print *,'d new', a
 
               !a = 0.0 !! hack out acc for now
 
