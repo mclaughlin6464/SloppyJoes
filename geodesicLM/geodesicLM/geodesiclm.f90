@@ -458,7 +458,10 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !print *,fjac
 
         if (n_accepted > 0) then
-            CALL update_storage(n,k,n_accepted, s, y, x_new-x, neg_delta_C_old - neg_delta_C)
+            CALL update_storage(n,k,n_accepted, s, y, x_new-x, neg_delta_C_old - neg_delta_C, info)
+        end if
+        if (info < 1) then
+            n_accepted = n_accepted - 1
         end if
         neg_delta_C_old = neg_delta_C
         x = x_new

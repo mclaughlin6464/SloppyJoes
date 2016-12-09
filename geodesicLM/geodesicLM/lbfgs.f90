@@ -21,31 +21,20 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
     INTEGER :: i,j
     REAL (KIND=8) ::  a(k), b(k), rho(k) 
 
-!    print *,'d old',d
-!    print *, n,k
-!    print *,'s',s
-!    print *,'y',y
+!    print *, n,k !    print *,'s',s !    print *,'y',y
 
-    print *,'d init',d
-    print *,'y',y
-    print *,'s',s
     do i=1,k-1
-        !print *, y(:,i), s(:,i)
-        !print *,1/DOT_PRODUCT(y(:,i), s(:,i))
         rho(i) = 1.0/DOT_PRODUCT(y(:,i), s(:,i))
     end do
 
     do i=k-1, 1,-1
         a(i) =  rho(i)*(DOT_PRODUCT(s(:,i), d))
-        !print *,i,a(i), rho(i)
         d = d - a(i)*y(:,i) ! might need to modify here?
-        !print *,'d',d
     end do
 
-    print *,'d',d
-    print *,'H0', H_0(1,1)
+    print *,'d old',d
     d = MATMUL(H_0, d)
-    print *,'d',d
+    print *,'d old',d
 
     do i=1,k-1
        b(i) = rho(i)*(DOT_PRODUCT(y(:,i), d)) 
@@ -54,12 +43,9 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
        !print *,'d',d
     end do
 
-   print *,'d final',d
-    print *,' '
-
 END SUBROUTINE lbfgs
 
-SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
+SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac, info)
 
     IMPLICIT NONE
 
@@ -68,24 +54,35 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
     REAL(KIND=8) :: s(n,k), y(n,k)
     REAL(KIND=8) :: d_x(n), d_jac(n)
 
-    INTEGER :: i
+    INTEGER :: i, info 
+
+    info = 1
+    do i=1,n
+        print *,'d_x', d_x(i)
+        print *,'d_x', d_x(i) .LE. 1.0E-015 
+        if (ABS(d_x(i)) .LE. 1.0E-015) then
+            info = 0
+            print *,'cont', info 
+        end if
+    end do
+
+    print *,'cont',info
 
     !print *,'s',s(1,:)
     !print *,'y',y(1,:)
-    print *,'d_x', d_x
-    print *,'d_jac', d_jac
-
-    if (istep .LE. k) then
-        !no shuffling needed
-        s(:,istep) = d_x
-        y(:,istep) = d_jac
-    else
-        do i=2,k 
-            s(:,i-1) = s(:,i)
-            y(:,i-1) = y(:,i)
-        end do
-    s(:,k) = d_x
-    y(:,k) = d_jac
+    if (info .EQ. 1) then
+        if (istep .LE. k) then
+            !no shuffling needed
+            s(:,istep) = d_x
+            y(:,istep) = d_jac
+        else
+            do i=2,k 
+                s(:,i-1) = s(:,i)
+                y(:,i-1) = y(:,i)
+            end do
+        s(:,k) = d_x
+        y(:,k) = d_jac
+        end if
     end if
 
     !print *,'s',s(1,:)
