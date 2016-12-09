@@ -16,8 +16,24 @@ def rosenbrock(x, A = 10):
     return np.array( outs )
 
 def polynomial_fit(x, y, coeff):
-    y_hat = np.array([c*(x**p) for p, c in enumerate(coeff)]) 
+    y_hat = np.sum([c*(x**p) for p, c in enumerate(coeff)],axis=0) 
     return y_hat - y 
+
+def exponential_fit(x, y, theta, coeff=None):
+    if coeff is None:
+        coeff = np.ones(theta.shape)
+    y_hat = np.sum([coeff[i]*np.exp(-x*theta[i]) for i in range(theta.shape[0])], axis=0) 
+    return y_hat - y
+
+def model_fit(x, y, theta, model_type='poly'):
+    if(model_type=='poly'):
+        return polynomial_fit(x,y,theta)
+    if(model_type=='exp'):
+        if(type(theta)==tuple and len(theta) > 1):
+            return exponential_fit(x,y,theta[0],theta[1])
+        else:
+            return exponential_fit(x,y,theta)
+
 
 def paraboloid(x):
     """ Parabaloid  """
