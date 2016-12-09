@@ -583,7 +583,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
             CALL lbfgs(n, H_0, k, s, y, v)
         end if
 
-        if (lam .GE.10.0) then
+        if (lam .GE. 10.0) then
             !just try an inverse
             v = -1.0d+0*MATMUL(fvec, fjac)
             CALL DPOTRS('U', n, 1, g, n, v, n, info)
@@ -659,7 +659,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
               !elseif (lam .GE. 1.0) then
               !    a = -1.0d+0*MATMUL(acc, fjac)
               !    a = 2*MATMUL(dtd_inv, a)
-              elseif (lam .GE. 0.1) then
+              elseif (lam .GE. 0.5) then
                   a =alpha*(-1.0d+0*MATMUL(acc, fjac))
                   !a = -1.0d+0*MATMUL(acc, fjac) - a
                   !v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))

@@ -59,17 +59,17 @@ def beale(x):
 np.random.seed(int(time()))
 noise_level = 0.1
 #x0 = np.array([1-0.5*(np.random.rand()-0.5) for i in xrange(2)])
-theta_true = np.array([3,2])
-x = np.linspace(0, 4, 5)
+theta_true = np.array([3-i for i in xrange(2)])
+x = np.linspace(0, 5, 6)
 y = polynomial_fit(theta_true, x, np.zeros_like(x)) + noise_level*np.random.randn(x.shape[0]) 
-theta0 = (np.random.rand(2)-0.5)*5.0
+theta0 = (np.random.rand(theta_true.shape[0]))*3.0
 print x
 print y
 print theta_true
 print theta0
 print polynomial_fit(theta_true, x, y)
 print polynomial_fit(theta0, x,y)
-xf, info = geodesiclm(polynomial_fit, theta0, args = (x,y), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0, k = 10, factoraccept=3.0, factorreject=5.0)
+xf, info = geodesiclm(polynomial_fit, theta0, args = (x,y), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0, k = 1000, factoraccept=3.0, factorreject=5.0)
 print info
 
 print xf
