@@ -401,6 +401,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
   !! Initialize scaling matrix
   IF(damp_mode.EQ.0) THEN
+     print *,'hi' 
      dtd(:,:) = 0.0d+0
      DO i=1,n
         dtd(i,i) = 1.0d+0

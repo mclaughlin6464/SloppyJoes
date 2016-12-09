@@ -5,9 +5,9 @@ import time
 from test import rosenbrock
 import sys
 
-ntrials = 50
+ntrials = 10
 results = {}
-for nparam in range(2,101):
+for nparam in range(2,80):
   total_start = time.time() 
   res = [] 
   iters = [] 
@@ -28,3 +28,6 @@ for nparam in range(2,101):
   
   print 'Finished with ' + str(nparam) + ' parameters'
   sys.stdout.flush()
+
+plt.plot(range(2,80),[results[i]['time']/ntrials for i in range(2,80)])
+plt.show()
