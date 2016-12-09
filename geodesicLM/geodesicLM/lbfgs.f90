@@ -26,6 +26,9 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
 !    print *,'s',s
 !    print *,'y',y
 
+    print *,'d init',d
+    print *,'y',y
+    print *,'s',s
     do i=1,k-1
         !print *, y(:,i), s(:,i)
         !print *,1/DOT_PRODUCT(y(:,i), s(:,i))
@@ -39,10 +42,10 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
         !print *,'d',d
     end do
 
-    !print *,'d',d
-    !print *,'H0', H_0(1,1)
+    print *,'d',d
+    print *,'H0', H_0(1,1)
     d = MATMUL(H_0, d)
-    !print *,'d',d
+    print *,'d',d
 
     do i=1,k-1
        b(i) = rho(i)*(DOT_PRODUCT(y(:,i), d)) 
@@ -51,8 +54,8 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
        !print *,'d',d
     end do
 
-!    print *,'d new',d
-!    print *,' '
+   print *,'d final',d
+    print *,' '
 
 END SUBROUTINE lbfgs
 
@@ -69,6 +72,8 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac)
 
     !print *,'s',s(1,:)
     !print *,'y',y(1,:)
+    print *,'d_x', d_x
+    print *,'d_jac', d_jac
 
     if (istep .LE. k) then
         !no shuffling needed

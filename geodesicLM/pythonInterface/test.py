@@ -3,7 +3,7 @@ from time import time
 import numpy as np
 
 
-def rosenbrock(x, A = 100):
+def rosenbrock(x, A = 10):
     """ Rosenbrock function """
     """ solution: all ones """
  
@@ -11,10 +11,13 @@ def rosenbrock(x, A = 100):
     outs = []
     for i in xrange(n-1):
         outs.append(1-x[i])
-        outs.append(A * (x[i+1] - x[i])**2)
+        outs.append(A * (x[i+1] - x[i]**2))
 
     return np.array( outs )
 
+def polynomial_fit(x, y, coeff):
+    y_hat = np.array([c*(x**p) for p, c in enumerate(coeff)]) 
+    return y_hat - y 
 
 def paraboloid(x):
     """ Parabaloid  """
@@ -38,9 +41,8 @@ def beale(x):
 
 #x0 = np.array(np.random.rand(2))
 np.random.seed(int(time()))
-x0 = np.array([1-0.3*(np.random.rand()-0.5) for i in xrange(5)])
-xf, info = geodesiclm(rosenbrock, x0, args = (), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0)
-
+x0 = np.array([1-0.3*(np.random.rand()-0.5) for i in xrange(2)])
+xf, info = geodesiclm(rosenbrock, x0, args = (), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0, k = 10)
 print info
 
 print xf

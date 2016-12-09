@@ -321,7 +321,6 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   a_param = 0.5
 
   !!! Initialize our variable storage.
-  k = 10 
   s(:,:) = 0.0
   y(:,:) = 0.0
   n_accepted = 0
@@ -363,6 +362,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
      converged = -11
      maxiter = 0
   ENDIF
+
   Cbest = C
   fvec_best = fvec
   x_best = x
@@ -457,8 +457,8 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !print *,x_new
         !print *,fjac
 
-        if (n_accepted > 1) then
-            CALL update_storage(n,k,n_accepted-1, s, y, x_new-x, neg_delta_C_old - neg_delta_C)
+        if (n_accepted > 0) then
+            CALL update_storage(n,k,n_accepted, s, y, x_new-x, neg_delta_C_old - neg_delta_C)
         end if
         neg_delta_C_old = neg_delta_C
         x = x_new
