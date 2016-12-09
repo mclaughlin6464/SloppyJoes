@@ -577,11 +577,13 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !CALL DPOTRS('U', n, 1, g, n, v, n, info)
         !print *,'d new',v
         !v = -1.0d+0*MATMUL(fvec, fjac)
+        print *,'v_orig', v
         if (n_accepted .LE. k) then
             CALL lbfgs(n, H_0, n_accepted, s, y, v)
         else
             CALL lbfgs(n, H_0, k, s, y, v)
         end if
+        print *,'v_final', v
 
         if (lam .GE. 10.0) then
             !just try an inverse

@@ -34,6 +34,9 @@ def model_fit(theta,x,y, model_type='poly'):
         else:
             return exponential_fit(theta, x,y)
 
+def lbfgs_test(theta, x, y):
+    y_hat = (theta[0]*x)**2 + theta[1]*theta[0]*x+theta[1]**2
+    return y_hat-y
 
 def paraboloid(x):
     """ Parabaloid  """
@@ -57,11 +60,12 @@ def beale(x):
 
 #x0 = np.array(np.random.rand(2))
 np.random.seed(int(time()))
-noise_level = 0.1
+noise_level = 0.0
 #x0 = np.array([1-0.5*(np.random.rand()-0.5) for i in xrange(2)])
 theta_true = np.array([3-i for i in xrange(2)])
-x = np.linspace(0, 5, 6)
-y = polynomial_fit(theta_true, x, np.zeros_like(x)) + noise_level*np.random.randn(x.shape[0]) 
+#x = np.linspace(1, 4, 4)
+x = np.array([1.0])
+y = lbfgs_test(theta_true, x, np.zeros_like(x)) + noise_level*np.random.randn(x.shape[0]) 
 theta0 = (np.random.rand(theta_true.shape[0]))*3.0
 print x
 print y
