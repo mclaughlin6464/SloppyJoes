@@ -168,7 +168,8 @@ def geodesiclm(func, x0, **kwargs):
     if kwargs.has_key('Cgoal'):
         Cgoal = kwargs['Cgoal']
     else:
-        Cgoal = 1.49012e-08
+        #Cgoal = 1.49012e-08
+	Cgoal = 1.0e-05
 
     ## gtol
     if kwargs.has_key('gtol'):

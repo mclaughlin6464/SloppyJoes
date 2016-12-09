@@ -32,9 +32,7 @@ SUBROUTINE lbfgs(n, H_0, k, s, y, d)
         d = d - a(i)*y(:,i) ! might need to modify here?
     end do
 
-    print *,'d old',d
     d = MATMUL(H_0, d)
-    print *,'d old',d
 
     do i=1,k-1
        b(i) = rho(i)*(DOT_PRODUCT(y(:,i), d)) 
@@ -58,15 +56,11 @@ SUBROUTINE update_storage(n, k, istep, s, y, d_x, d_jac, info)
 
     info = 1
     do i=1,n
-        print *,'d_x', d_x(i)
-        print *,'d_x', d_x(i) .LE. 1.0E-015 
         if (ABS(d_x(i)) .LE. 1.0E-015) then
             info = 0
-            print *,'cont', info 
         end if
     end do
 
-    print *,'cont',info
 
     !print *,'s',s(1,:)
     !print *,'y',y(1,:)
