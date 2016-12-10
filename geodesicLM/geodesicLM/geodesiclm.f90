@@ -274,6 +274,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
 
   !! Our paramaters
   REAL (KIND=8) s(n, k), y(n,k), neg_delta_C(n), neg_delta_C_old(n), dtd_inv(n,n), ident(n,n)
+  REAL (KIND=8) alpha
   INTEGER i, j, istep, accepted, counter
   INTEGER row,col,n_accepted
   
@@ -321,6 +322,7 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   a_param = 0.5
 
   !!! Initialize our variable storage.
+  alpha = 0.005
   s(:,:) = 0.0
   y(:,:) = 0.0
   n_accepted = 0
@@ -575,20 +577,29 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
         !CALL DPOTRS('U', n, 1, g, n, v, n, info)
         !print *,'d new',v
         !v = -1.0d+0*MATMUL(fvec, fjac)
+        print *,'v_orig', v
         if (n_accepted .LE. k) then
             CALL lbfgs(n, H_0, n_accepted, s, y, v)
         else
             CALL lbfgs(n, H_0, k, s, y, v)
         end if
-        if (lam .GE. 100.0) then
+        print *,'v_final', v
+
+        if (lam .GE. 10.0) then
+            !just try an inverse
             v = -1.0d+0*MATMUL(fvec, fjac)
-            v = MATMUL(dtd_inv, v)
-        elseif (lam .GE. 10.0) then
-            v = -1.0d+0*MATMUL(fvec, fjac) - v
+            CALL DPOTRS('U', n, 1, g, n, v, n, info)
+        !elseif (lam .GE. 1.0) then
+        !    v = -1.0d+0*MATMUL(fvec, fjac)
+        !    v = 2*MATMUL(dtd_inv, v)
+        elseif (lam .GE. 0.5) then
+            !gradient descent
+            v = alpha*(-1.0d+0*MATMUL(fvec, fjac))
+            !v = -1.0d+0*MATMUL(fvec, fjac) - v
             !v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
-        elseif (lam  .GE. 1.0) then
-            v = -1.0d+0*MATMUL(fvec, fjac)
-            v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
+        !elseif (lam  .GE. 1.0) then
+        !    v = -1.0d+0*MATMUL(fvec, fjac)
+        !    v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
         endif
         !elseif (lam .GE. 0.01) then
         !    print *,'d new',v
@@ -643,15 +654,20 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
               else
                   CALL lbfgs(n, H_0, k, s, y, a)
               endif
-              if (lam .GE. 100.0) then
+
+              if (lam .GE. 10.0) then
                   a = -1.0d+0*MATMUL(acc, fjac)
-                  a = MATMUL(dtd_inv, a)
-              elseif (lam .GE. 10.0) then
-                  a = -1.0d+0*MATMUL(acc, fjac) - a
+                  CALL DPOTRS('U', n, 1, g, n, a, n, info)
+              !elseif (lam .GE. 1.0) then
+              !    a = -1.0d+0*MATMUL(acc, fjac)
+              !    a = 2*MATMUL(dtd_inv, a)
+              elseif (lam .GE. 0.5) then
+                  a =alpha*(-1.0d+0*MATMUL(acc, fjac))
+                  !a = -1.0d+0*MATMUL(acc, fjac) - a
                   !v = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, v)))
-              elseif (lam  .GE. 1.0) then
-                  a = -1.0d+0*MATMUL(acc, fjac)
-                  a = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, a)))
+              !elseif (lam  .GE. 1.0) then
+              !    a = -1.0d+0*MATMUL(acc, fjac)
+              !    a = MATMUL(dtd_inv, MATMUL( ident-jtj, MATMUL(dtd_inv, a)))
               endif
 
               !print *,'d new', a
@@ -776,6 +792,8 @@ SUBROUTINE geodesiclm(func, jacobian, Avv, &
   ENDIF
 
 END SUBROUTINE geodesiclm
+
+
      
 
      

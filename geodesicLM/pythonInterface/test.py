@@ -15,25 +15,28 @@ def rosenbrock(x, A = 10):
 
     return np.array( outs )
 
-def polynomial_fit(x, y, coeff):
-    y_hat = np.sum([c*(x**p) for p, c in enumerate(coeff)],axis=0) 
+def polynomial_fit(theta, x, y):
+    y_hat = np.sum([t*(x**p) for p, t in enumerate(theta)],axis=0) 
     return y_hat - y 
 
-def exponential_fit(x, y, theta, coeff=None):
+def exponential_fit(theta, x, y, coeff=None):
     if coeff is None:
         coeff = np.ones(theta.shape)
-    y_hat = np.sum([coeff[i]*np.exp(-x*theta[i]) for i in range(theta.shape[0])], axis=0) 
+    y_hat = np.sum([coeff[i]*np.exp(-x*theta[i]) for i in xrange(theta.shape[0])], axis=0) 
     return y_hat - y
 
-def model_fit(x, y, theta, model_type='poly'):
+def model_fit(theta,x,y, model_type='poly'):
     if(model_type=='poly'):
-        return polynomial_fit(x,y,theta)
+        return polynomial_fit(theta, x,y)
     if(model_type=='exp'):
         if(type(theta)==tuple and len(theta) > 1):
-            return exponential_fit(x,y,theta[0],theta[1])
+            return exponential_fit(theta[0], x,y,theta[1])
         else:
-            return exponential_fit(x,y,theta)
+            return exponential_fit(theta, x,y)
 
+def lbfgs_test(theta, x, y):
+    y_hat = (theta[0]*x)**2 + theta[1]*theta[0]*x+theta[1]**2
+    return y_hat-y
 
 def paraboloid(x):
     """ Parabaloid  """
@@ -57,8 +60,20 @@ def beale(x):
 
 #x0 = np.array(np.random.rand(2))
 np.random.seed(int(time()))
-x0 = np.array([1-0.3*(np.random.rand()-0.5) for i in xrange(2)])
-xf, info = geodesiclm(rosenbrock, x0, args = (), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0, k = 100)
+noise_level = 0.0
+#x0 = np.array([1-0.5*(np.random.rand()-0.5) for i in xrange(2)])
+theta_true = np.array([3-i for i in xrange(2)])
+#x = np.linspace(1, 4, 4)
+x = np.array([1.0])
+y = lbfgs_test(theta_true, x, np.zeros_like(x)) + noise_level*np.random.randn(x.shape[0]) 
+theta0 = (np.random.rand(theta_true.shape[0]))*3.0
+print x
+print y
+print theta_true
+print theta0
+print polynomial_fit(theta_true, x, y)
+print polynomial_fit(theta0, x,y)
+xf, info = geodesiclm(polynomial_fit, theta0, args = (x,y), full_output=1, print_level = 5, iaccel = 1, maxiters = 10000, artol = -1.0, xtol = -1, ftol = -1, avmax = 2.0, k = 1000, factoraccept=3.0, factorreject=5.0)
 print info
 
 print xf
