@@ -3,6 +3,8 @@
 __author__ = 'Sean McLaughlin'
 __email__ = 'swmclau2@stanford.edu'
 
+import numpy as np
+
 
 def fdjac(x, fvec, func, eps, center_diff):
 
