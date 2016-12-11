@@ -6,7 +6,6 @@ import numpy as np
 def rosenbrock(x, A=10):
     """ Rosenbrock function """
     """ solution: all ones """
-
     n = x.shape[0]
     outs = []
     for i in xrange(n - 1):
@@ -66,15 +65,14 @@ def beale(x):
 
 # x0 = np.array(np.random.rand(2))
 np.random.seed(int(time()))
-#noise_level = 0.0
-x0 = np.array([-1.0, -1.0, 1.0, -1.0])
-print rosenbrock(x0)
-#theta_true = np.array([3 - i for i in xrange(2)])
-# x = np.linspace(1, 4, 4)
+noise_level = 0.0
+#x0 = np.array([1.0, -1.0])
+theta_true = np.array([3 - i for i in xrange(2)])
+x = np.linspace(1, 4, 4)
 #x = np.array([1.0])
-#y = lbfgs_test(theta_true, x, np.zeros_like(x)) + noise_level * np.random.randn(x.shape[0])
-#theta0 = (np.random.rand(theta_true.shape[0])) * 3.0
-xf = lazy_wrapper(rosenbrock, x0, args=(), full_output=1, print_level=5, iaccel=1, maxiters=10000,
+y = polynomial_fit(theta_true, x, np.zeros_like(x)) + noise_level * np.random.randn(x.shape[0])
+theta0 = (np.random.rand(theta_true.shape[0])) * 3.0
+thetaf = lazy_wrapper(polynomial_fit, theta0, args=(x,y), full_output=1, print_level=5, iaccel=1, maxiters=10000,
                       artol=-1.0, xtol=-1, ftol=-1, avmax=2.0, k=1000, factoraccept=3.0, factorreject=5.0)
 
-print xf
+print thetaf

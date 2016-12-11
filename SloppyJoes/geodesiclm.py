@@ -26,6 +26,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
 
     converged_info = {}
 
+    converged_info[0] = '?????????'
     converged_info[1] = 'artol reached'
     converged_info[2] = 'Cgoal reached'
     converged_info[3] = 'gtol reached'
@@ -213,6 +214,11 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             g = jtj+lam*dtd
             H_0[np.diag_indices_from(H_0)] = 1.0/np.diag(g)
 
+            if n_accepted < k:
+                g_lbfgs = optimize.LbfgsInvHessProduct(s[:, :n_accepted].T, y[:, :n_accepted].T)
+            else:
+                g_lbfgs = optimize.LbfgsInvHessProduct(s.T,y.T)
+
             dtd_inv[np.diag_indices_from(dtd)] = 1.0/(lam*np.diag(dtd))
 
             g_upper = linalg.cholesky(g)
@@ -225,7 +231,19 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             neg_delta_C = -np.dot(fvec, fjac)
 
             #for now, just get the original version without my additions
-            v = linalg.cho_solve((g_upper, False), neg_delta_C)
+            #v = linalg.cho_solve((g_upper, False), neg_delta_C)
+            print linalg.inv(jtj)
+            print g_lbfgs.todense()
+            print s
+            print g_lbfgs.todense().shape, neg_delta_C.shape
+            if n_accepted < 3 or lam >100.0:
+                v = 0.001*neg_delta_C
+            elif lam > 2.0:
+                v = np.dot(dtd_inv, neg_delta_C)
+            else:
+                v = g_lbfgs.dot(neg_delta_C)
+
+            print 'v', v
 
             temp1 = 0.5*np.dot(v, np.dot(jtj,v))/C
             temp2 = 0.5*lam*np.dot(v, np.dot(dtd,v))/C
@@ -252,7 +270,14 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             #acceleration calc
             if valid_result:
                 a = -np.dot(acc, fjac) #dont have a good name for this
-                a = linalg.cho_solve((g_upper, False), a)
+                #a = linalg.cho_solve((g_upper, False), a)
+
+                if n_accepted < 3 or lam > 100.0:
+                    a = ((0.001)**2) * a
+                elif lam > 2.0:
+                    a = np.dot(dtd_inv, a)
+                else:
+                    a = g_lbfgs.dot(a)
 
             else:
                 a = np.zeros_like(v)
