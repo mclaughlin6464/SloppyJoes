@@ -27,6 +27,6 @@ def fdjac(x, fvec, func, eps, center_diff):
             dx[i] = h
             temp1 = func(x+dx)
             dx[i] = 0.0
-            fjac.append( (temp1-fvec) )/h
+            fjac.append( (temp1-fvec)/h)
 
     return np.stack(fjac).T #not sure bout the dimension here

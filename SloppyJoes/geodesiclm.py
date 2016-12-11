@@ -103,14 +103,14 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
 
     jac_uptodate = True
     jac_force_update = False
-    jtj = np.outer(fjac, fjac)
+    jtj = np.dot(fjac.T, fjac)
 
     acc = np.zeros(m) #could move up with the other initializations
 
     if damp_mode==0:
         dtd = np.eye(n)
     elif damp_mode==1:
-        dtd[np.diag_indices(dtd.shape[0])] = np.max(np.vstack(np.diag(jtj), np.diag(dtd)), axis=0)
+        dtd[np.diag_indices(dtd.shape[0])] = np.max(np.vstack([np.diag(jtj), np.diag(dtd)]), axis=0)
 
     if imethod < 10:
         lam = np.max(np.diag(jtj))*initialfactor
@@ -178,12 +178,12 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
 
         if valid_result: #no nans, lets party
 
-            jtj = np.dot(fjac, fjac) #not sure if this is the write shape
+            jtj = np.dot(fjac.T, fjac) #not sure if this is the write shape
 
             #update scaling/lam/trustregion
             if istep > 1:
                 if damp_mode == 1:
-                    dtd[np.diag_indices(dtd.shape[0])] = np.max(np.vstack(np.diag(jtj), np.diag(dtd)), axis=0)
+                    dtd[np.diag_indices(dtd.shape[0])] = np.max(np.vstack([np.diag(jtj), np.diag(dtd)]), axis=0)
                 #could write a helper function to wrap this up
                 if imethod == 0:
                     #update lam directly by fixed factors
@@ -221,7 +221,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             neg_delta_C = -np.dot(fvec, fjac)
 
             #for now, just get the original version without my additions
-            v = linalg.solve((g_upper, False), neg_delta_C)
+            v = linalg.cho_solve((g_upper, False), neg_delta_C)
 
             temp1 = 0.5*np.dot(v, np.dot(jtj,v))/C
             temp2 = 0.5*lam*np.dot(v, np.dot(dtd,v))/C
@@ -248,7 +248,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             #acceleration calc
             if valid_result:
                 a = -np.dot(acc, fjac) #dont have a good name for this
-                a = linalg.solve((g_upper, False), a)
+                a = linalg.cho_solve((g_upper, False), a)
 
             else:
                 a = np.zeros_like(v)
@@ -281,7 +281,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             accepted = min(accepted-1, -1)
 
         if converged == 0:
-            counter, converged = convergence_check(converged, accepted, counter, C, Cnew, x, fvec, fjac, lam, xnew,
+            counter, converged = convergence_check(converged, accepted, counter, C, Cnew, x, fvec, fjac, lam, x_new,
                       nfev, maxfev, njev, maxjev, naev, maxaev, maxlam, minlam, artol,
                       Cgoal, gtol, xtol, xrtol, ftol,frtol, cos_alpha)
             if converged == 1 and not jac_uptodate:
@@ -331,7 +331,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
     if print_level >= 1:
         print "Optimization finished"
         print "Results:"
-        print "  Converged:    ", converged_info(converged), converged
+        print "  Converged:    ", converged_info[converged], converged
         print "  Final Cost: ", 0.5 * np.dot(fvec, fvec)
         print "  Cost/DOF: ", 0.5* np.dot(fvec, fvec) / (m - n)
         print "  niters:     ", istep
@@ -451,11 +451,11 @@ def lazy_wrapper(func, x0, **kwargs):
     info = 0
 
     ## dtd
-    dtd = numpy.empty( (len(x0), len(x0) ), order = 'F')
+    dtd = np.empty( (len(x0), len(x0) ), order = 'F')
     if kwargs.has_key('dtd'):
         dtd[:,:] = kwargs['dtd'][:,:] # guarantee that order = 'F'
     else:
-        dtd[:,:] = numpy.eye( len(x0) )[:,:]
+        dtd[:,:] = np.eye( len(x0) )[:,:]
 
     if kwargs.has_key('damp_mode'):
         damp_mode = kwargs['damp_mode']
@@ -625,19 +625,23 @@ def lazy_wrapper(func, x0, **kwargs):
 
     x = x0.copy()
 
-    return geodesiclm(func, jacobian, Avv,
-                           x, fvec, fjac,k,
-                           callback, info,
-                           analytic_jac, analytic_Avv,
-                           center_diff, h1, h2,
-                           dtd, damp_mode,
-                           niters, nfev, njev, naev,
-                           maxiter, maxfev, maxjev, maxaev, maxlam, minlam,
-                           artol, Cgoal, gtol, xtol, xrtol, ftol, frtol,
-                           converged,
-                           print_level, print_unit,
-                           imethod, iaccel, ibold, ibroyden,
-                           initialfactor, factoraccept, factorreject, avmax,
-                           func_extra_args = func_extra_args,
-                           jacobian_extra_args = jacobian_extra_args,
-                           Avv_extra_args = Avv_extra_args)
+    f = lambda x: func(x, *func_extra_args)
+
+    return geodesiclm(f, jacobian, Avv, x, fvec, fjac, x.shape[0],_m,k,callback,info,\
+               analytic_jac, analytic_Avv, center_diff, h1, h2, \
+                dtd, damp_mode, niters, nfev, njev, naev, maxiter, maxfev, maxjev,
+               maxaev, maxlam, minlam, artol, Cgoal, gtol, xtol, xrtol, ftol, frtol,
+               converged, print_level, print_unit, imethod, iaccel, ibold, ibroyden, initialfactor,\
+               factoraccept, factorreject, avmax)
+                           #func_extra_args = func_extra_args,
+                           #jacobian_extra_args = jacobian_extra_args,
+                           #Avv_extra_args = Avv_extra_args)
+
+def jacobian_dummy(x,*args):
+    pass
+
+def Avv_dummy(x,v,*args):
+    pass
+
+def callback_dummy(x,v,a,fvec,fjac,acc,lam,dtd,fvec_new,accepted):
+    return 0

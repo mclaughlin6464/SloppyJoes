@@ -9,4 +9,4 @@ setup(name='SloppyJoes',
         author_email='swmclau2@stanford.edu',
         url='https://github.com/mclaughlin6464/SloppyJoes',
         scripts=scripts,
-        packages=['SloppyJoes','geodesicLM'])
+        packages=['SloppyJoes', 'geodesicLM'])
