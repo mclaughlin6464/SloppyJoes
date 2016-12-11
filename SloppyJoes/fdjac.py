@@ -22,7 +22,7 @@ def fdjac(x, fvec, func, eps, center_diff):
             dx[i] = 0.0
     else:
         for i in xrange(x.shape[0]):
-            h = eps * x[i]
+            h = eps *abs(x[i])
             h = eps if h < epsmach else h
             dx[i] = h
             temp1 = func(x+dx)

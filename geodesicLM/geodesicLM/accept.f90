@@ -17,8 +17,11 @@ SUBROUTINE Acceptance(n,C, Cnew, Cbest, ibold, accepted, &
         beta = 1.0d+0
      ELSE
         beta = DOT_PRODUCT(v,MATMUL(dtd, vold))
+
         beta = beta/SQRT( DOT_PRODUCT(v,MATMUL(dtd,v)) * DOT_PRODUCT(vold,MATMUL(dtd,vold) ))
+
         beta = min(1.0d+0,1.0d+0-beta)
+
      END IF
      SELECT CASE (ibold)
      CASE(0) !! Only downhill steps 

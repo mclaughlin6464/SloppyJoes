@@ -43,6 +43,11 @@ def convergence_check(converged, accepted, counter, C, Cnew, x, fvec, fjac, lam,
         converged = 3
         return counter, converged
 
+    #if cost is sufficiently small
+    if C < Cgoal:
+        converged=2
+        return counter, converged
+
     #if step isn't accepted, don't check remaining criteria
     if accepted < 0:
         counter = 0

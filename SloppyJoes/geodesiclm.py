@@ -4,7 +4,7 @@ __author__ = 'Sean McLaughlin'
 __email__ = 'swmclau2@stanford.edu'
 
 import numpy as np
-from scipy import linalg
+from scipy import linalg, optimize
 
 from .fdjac import fdjac
 from .fdavv import fdavv
@@ -19,7 +19,7 @@ from .converge import convergence_check
 #i'll make notes of which ones that is
 def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                analytic_jac, analytic_Avv, center_diff, h1, h2, \
-                dtd, damp_mode, niters, nfev, njev, jaev, maxiter, maxfev, maxjev,
+                dtd, damp_mode, niters, nfev, njev, naev, maxiter, maxfev, maxjev,
                maxaev, maxlam, minlam, artol, Cgoal, gtol, xtol, xrtol, ftol, frtol,
                converged, print_level, print_unit, imethod, iaccel, ibold, ibroyden, initialfactor,\
                factoraccept, factorreject, avmax):
@@ -51,7 +51,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
         print output_string
 
     niters = 0
-    nfev, naev, njaev = 0,0,0
+    nfev, naev, njev = 0,0,0
     #think this can be boolean
     converged = 0
 
@@ -99,6 +99,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
         njev+=1
     else:
         fjac = fdjac(x, fvec, func, h1, center_diff)
+        #fjac = optimize.approx_fprime(x, func, h1)
         nfev = nfev + 2*n if center_diff else nfev + n
 
     jac_uptodate = True
@@ -136,7 +137,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             break
 
         #full or parital jac update
-        if accepted>=0 and ibroyden <=0:
+        if accepted>0 and ibroyden <=0:
             jac_force_update = True
         if accepted+ibroyden <= 0 and not jac_uptodate:
             jac_force_update = True
@@ -172,16 +173,19 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                 njev += 1
             else:
                 fjac = fdjac(x, fvec, func, h1, center_diff)
+                #fjac = optimize.approx_fprime(x, func, h1)
                 nfev = nfev + 2 * n if center_diff else nfev + n
+            jac_uptodate = True
+            jac_force_update = False
 
         valid_result = np.all(~np.isnan(fjac))
 
         if valid_result: #no nans, lets party
 
-            jtj = np.dot(fjac.T, fjac) #not sure if this is the write shape
+            jtj = np.dot(fjac.T, fjac) #not sure if this is the right shape
 
             #update scaling/lam/trustregion
-            if istep > 1:
+            if istep > 0: #only necessary after the first step
                 if damp_mode == 1:
                     dtd[np.diag_indices(dtd.shape[0])] = np.max(np.vstack([np.diag(jtj), np.diag(dtd)]), axis=0)
                 #could write a helper function to wrap this up
@@ -259,7 +263,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                 x_new = x+v+0.5*a
                 fvec_new = func(x_new)
                 nfev+=1
-                Cnew = 0.5*np.sum(fvec**2)
+                Cnew = 0.5*np.sum(fvec_new**2)
                 Cold = C
 
                 valid_result = np.all(~np.isnan(fvec_new))
@@ -288,7 +292,6 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                 #if converged by artol with an out of date jacobian update the jacobian to confirm true conergence
                 converged = 0
                 jac_force_update = True
-
         #printing
         if print_level == 2 and accepted > 0:
             print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
@@ -298,7 +301,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
             print "  Cost, lam, delta", C, lam, delta
             print "  av, cos alpha", av, cos_alpha
-        elif print_level == 4 and accepted > 0:
+        if print_level == 4 and accepted > 0:
             print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
             print "  Cost, lam, delta", C, lam, delta
             print "  av, cos alpha", av, cos_alpha
@@ -333,8 +336,11 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
         print "Results:"
         print "  Converged:    ", converged_info[converged], converged
         print "  Final Cost: ", 0.5 * np.dot(fvec, fvec)
-        print "  Cost/DOF: ", 0.5* np.dot(fvec, fvec) / (m - n)
-        print "  niters:     ", istep
+        if m != n:
+            print "  Cost/DOF: ", 0.5* np.dot(fvec, fvec) / (m - n)
+        else:
+            print "  Cost/DOF: ", np.inf
+        print "  niters:     ", istep+1
         print "  nfev:       ", nfev
         print "  njev:       ", njev
         print "  naev:       ", naev

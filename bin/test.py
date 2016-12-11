@@ -67,7 +67,8 @@ def beale(x):
 # x0 = np.array(np.random.rand(2))
 np.random.seed(int(time()))
 #noise_level = 0.0
-x0 = np.array([1-5*(np.random.rand()-0.5) for i in xrange(2)])
+x0 = np.array([-1.0, -1.0, 1.0, -1.0])
+print rosenbrock(x0)
 #theta_true = np.array([3 - i for i in xrange(2)])
 # x = np.linspace(1, 4, 4)
 #x = np.array([1.0])

@@ -15,7 +15,7 @@ def acceptance(C, Cnew, Cbest, ibold, accepted, dtd, v, vold):
             beta = 1.0
         else:
             beta = np.dot(v, np.dot(dtd, vold))
-            beta = beta/np.sqrt(np.dot(v, np.dot(dtd,v)))*np.dot(vold, np.dot(dtd, vold))
+            beta = beta/np.sqrt(np.dot(v, np.dot(dtd,v))*np.dot(vold, np.dot(dtd, vold)))
             beta = min(1.0, 1.0-beta)
 
         if ibold == 0: #only donwhill steps
