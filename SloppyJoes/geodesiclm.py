@@ -12,6 +12,8 @@ from .lambdaFuncs import TrustRegion, Updatedelta_factor, Updatedelta_more, Upda
     Updatelam_Umrigar
 from .updatejac import updatejac
 from .lbfgs import update_storage
+from .accept import acceptance
+from .converge import convergence_check
 
 #Most of these can be removed, and also absorbed into a kwarg
 #i'll make notes of which ones that is
@@ -123,7 +125,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
 
     fvec_new = np.zeros_like(fvec)#i think have to initialize this here
     x_new = np.zeros_like(x) #not sure about these initializations
-    Cnew = np.inf
+    Cnew, Cold = np.inf, np.inf
 
     #main loop
     for istep in xrange(maxiter):
@@ -239,7 +241,103 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                     acc = Avv(x,v)
                     naev+=1
                 else:
-                    acc = FDAvv(x,v,fvec, fjac, func, jac_uptodate, h2)
+                    acc = fdavv(x,v,fvec, fjac, func, jac_uptodate, h2)
+                    nfev = nfev+1 if jac_uptodate else nfev + 2
 
+            valid_result = np.all(~np.isnan(acc))
+            #acceleration calc
+            if valid_result:
+                a = -np.dot(acc, fjac) #dont have a good name for this
+                a = linalg.solve((g_upper, False), a)
 
+            else:
+                a = np.zeros_like(v)
+
+            #evaluate at proposed step if av <=avmax
+            av = np.sqrt(np.dot(a, np.dot(dtd, a))/np.dot(v, np.dot(dtd, v)))
+            if av <= avmax:
+                x_new = x+v+0.5*a
+                fvec_new = func(x_new)
+                nfev+=1
+                Cnew = 0.5*np.sum(fvec**2)
+                Cold = C
+
+                valid_result = np.all(~np.isnan(fvec_new))
+
+                if valid_result: #proceed as normal
+                    actred = 1.0-Cnew/C
+                    rho = 0.0
+                    if pred_red != 0:
+                        rho = actred/pred_red
+                    accepted = acceptance(C, Cnew, Cbest, ibold, accepted, dtd, v, vold)
+                else: #reject step
+                    actred = 0.0
+                    rho = 0.0
+                    accepted = min(accepted-1, -1)
+
+            else: #acceleration too large, reject
+                accepted = min(accepted-1, -1)
+        else:
+            accepted = min(accepted-1, -1)
+
+        if converged == 0:
+            counter, converged = convergence_check(converged, accepted, counter, C, Cnew, x, fvec, fjac, lam, xnew,
+                      nfev, maxfev, njev, maxjev, naev, maxaev, maxlam, minlam, artol,
+                      Cgoal, gtol, xtol, xrtol, ftol,frtol, cos_alpha)
+            if converged == 1 and not jac_uptodate:
+                #if converged by artol with an out of date jacobian update the jacobian to confirm true conergence
+                converged = 0
+                jac_force_update = True
+
+        #printing
+        if print_level == 2 and accepted > 0:
+            print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
+            print "  Cost, lam, delta", C, lam, delta
+            print "  av, cos alpha", av, cos_alpha
+        elif print_level == 3:
+            print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
+            print "  Cost, lam, delta", C, lam, delta
+            print "  av, cos alpha", av, cos_alpha
+        elif print_level == 4 and accepted > 0:
+            print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
+            print "  Cost, lam, delta", C, lam, delta
+            print "  av, cos alpha", av, cos_alpha
+            print "  x = ", x
+            print "  v = ", v
+            print "  a = ", a
+        elif print_level == 5:
+            print "  istep, nfev, njev, naev, accepted", istep, nfev, njev, naev, accepted
+            print "  Cost, lam, delta", C, lam, delta
+            print "  av, cos alpha", av, cos_alpha
+            print "  x = ", x
+            print "  v = ", v
+            print  "  a = ", a
+
+        if converged != 0:
+            break#w'ere done!
+
+        if accepted >0:
+            jac_uptodate = False #jaobian out of date
+
+    if converged == 0: #not converged
+        conveged = -1
+
+    niters = istep
+    #return best fit found
+
+    x = x_best
+    fvec = fvec_best
+
+    if print_level >= 1:
+        print "Optimization finished"
+        print "Results:"
+        print "  Converged:    ", converged_info(converged), converged
+        print "  Final Cost: ", 0.5 * np.dot(fvec, fvec)
+        print "  Cost/DOF: ", 0.5* np.dot(fvec, fvec) / (m - n)
+        print "  niters:     ", istep
+        print "  nfev:       ", nfev
+        print "  njev:       ", njev
+        print "  naev:       ", naev
+
+    return x_best
 
