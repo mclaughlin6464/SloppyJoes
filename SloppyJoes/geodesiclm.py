@@ -22,7 +22,9 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                 dtd, damp_mode, niters, nfev, njev, naev, maxiter, maxfev, maxjev,
                maxaev, maxlam, minlam, artol, Cgoal, gtol, xtol, xrtol, ftol, frtol,
                converged, print_level, print_unit, imethod, iaccel, ibold, ibroyden, initialfactor,\
-               factoraccept, factorreject, avmax):
+               factoraccept, factorreject, avmax, approx = 'None'):
+
+    assert approx in {'None', 'LBFGS', 'LBFGS+Grad'}
 
     converged_info = {}
 
@@ -38,6 +40,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
     converged_info[-2] = 'maxfev exceeded'
     converged_info[-3] = 'maxjev exceeded'
     converged_info[-4] = 'maxaev exceeded'
+    converged_info[-5] = 'maxlam exceeded'
     converged_info[-10] = 'User Termination '
     converged_info[-11] = 'NaN Produced'
 
@@ -53,6 +56,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
 
     niters = 0
     nfev, naev, njev = 0,0,0
+    napprox, ngrad, ndtd = 0.0, 0.0, 0.0
     #think this can be boolean
     converged = 0
 
@@ -69,10 +73,9 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
     y = np.zeros_like(s)
     #not sure if these really need to be initialized
     neg_delta_C, neg_delta_C_old = np.zeros(n), np.zeros(n)
-    alpha = 0.005
+    alpha = 0.001
     n_accepted = 0
 
-    H_0 = np.eye(n)*0.001
     dtd_inv = np.eye(n)
 
     accepted=0
@@ -95,6 +98,7 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
     fvec_best = fvec
     x_best = x
 
+    print 'x', x
     if analytic_jac:
         fjac = jacobian(x)
         njev+=1
@@ -103,9 +107,11 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
         #fjac = optimize.approx_fprime(x, func, h1)
         nfev = nfev + 2*n if center_diff else nfev + n
 
+    print 'fjac',fjac
     jac_uptodate = True
     jac_force_update = False
     jtj = np.dot(fjac.T, fjac)
+    print 'jtj',jtj
 
     acc = np.zeros(m) #could move up with the other initializations
 
@@ -212,7 +218,6 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             #propose step
 
             g = jtj+lam*dtd
-            H_0[np.diag_indices_from(H_0)] = 1.0/np.diag(g)
 
             if n_accepted < k:
                 g_lbfgs = optimize.LbfgsInvHessProduct(s[:, :n_accepted].T, y[:, :n_accepted].T)
@@ -220,8 +225,15 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                 g_lbfgs = optimize.LbfgsInvHessProduct(s.T,y.T)
 
             dtd_inv[np.diag_indices_from(dtd)] = 1.0/(lam*np.diag(dtd))
-
-            g_upper = linalg.cholesky(g)
+            if approx == 'None':
+                g_upper = linalg.cholesky(g)
+            else:
+                #TODO delte
+                #g_upper = linalg.cholesky(g)
+                if n_accepted < k:
+                    g_lbfgs = optimize.LbfgsInvHessProduct(s[:, :n_accepted].T, y[:, :n_accepted].T)
+                else:
+                    g_lbfgs = optimize.LbfgsInvHessProduct(s.T, y.T)
             info = 0
         else:#nans in jac
             converged = -11
@@ -231,19 +243,33 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             neg_delta_C = -np.dot(fvec, fjac)
 
             #for now, just get the original version without my additions
-            #v = linalg.cho_solve((g_upper, False), neg_delta_C)
-            print linalg.inv(jtj)
-            print g_lbfgs.todense()
-            print s
-            print g_lbfgs.todense().shape, neg_delta_C.shape
-            if n_accepted < 3 or lam >100.0:
-                v = 0.001*neg_delta_C
-            elif lam > 2.0:
-                v = np.dot(dtd_inv, neg_delta_C)
+            if approx == 'None':
+                v = linalg.cho_solve((g_upper, False), neg_delta_C)
             else:
-                v = g_lbfgs.dot(neg_delta_C)
+                if n_accepted < 5 or lam > 100.0 and approx == 'LBFGS+Grad':
+                    v = alpha * neg_delta_C
+                    ngrad+=1
+                elif lam > 3.0:
+                    v = np.dot(dtd_inv, neg_delta_C)
+                    ndtd+=1
+                else:
+                    napprox+=1
+                    #print 'LBFGS'
+                    #print 'True', linalg.cho_solve((g_upper, False), neg_delta_C)
+                    v = g_lbfgs.dot(neg_delta_C)
+                    #print 'approx', v
+                    if linalg.norm(v) > 1.0: #too big!
+                        #v = v * 1.0 / (g.mean() * g_lbfgs.todense().mean())
+                        v/=linalg.norm(v)
+                    #print 'approx normed', v
 
-            print 'v', v
+            #print linalg.inv(jtj)
+            #print g_lbfgs.todense()
+            #print linalg.inv(optimize.rosen_hess(x))
+            #print 'Eigvals'
+            #print linalg.eigvalsh(linalg.cho_solve((g_upper, False), np.eye(g_upper.shape[0])))
+            #print linalg.eigvalsh(linalg.inv(jtj))
+            #print linalg.eigvalsh(g_lbfgs.todense())
 
             temp1 = 0.5*np.dot(v, np.dot(jtj,v))/C
             temp2 = 0.5*lam*np.dot(v, np.dot(dtd,v))/C
@@ -270,14 +296,21 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
             #acceleration calc
             if valid_result:
                 a = -np.dot(acc, fjac) #dont have a good name for this
-                #a = linalg.cho_solve((g_upper, False), a)
 
-                if n_accepted < 3 or lam > 100.0:
-                    a = ((0.001)**2) * a
-                elif lam > 2.0:
-                    a = np.dot(dtd_inv, a)
+                if approx == 'None':
+                    a = linalg.cho_solve((g_upper, False), a)
                 else:
-                    a = g_lbfgs.dot(a)
+                    if n_accepted < 5 or lam > 100.0 and approx == 'LBFGS+Grad':
+                        a = (alpha**2) *a
+                    elif lam > 3.0:
+                        a = np.dot(dtd_inv, a)
+                    else:
+                        a = g_lbfgs.dot(a)
+                        if linalg.norm(a) > 1.0: #too big!
+                            #a = a* 1.0 / (g.mean() * g_lbfgs.todense().mean())
+                            a/=linalg.norm(a)
+
+                #a = linalg.cho_solve((g_upper, False), a)
 
             else:
                 a = np.zeros_like(v)
@@ -302,11 +335,14 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
                 else: #reject step
                     actred = 0.0
                     rho = 0.0
+                    print 'Rejected fvec'
                     accepted = min(accepted-1, -1)
 
             else: #acceleration too large, reject
+                print 'Rejected avmax'
                 accepted = min(accepted-1, -1)
         else:
+            print 'Rejected decomp'
             accepted = min(accepted-1, -1)
 
         if converged == 0:
@@ -369,6 +405,9 @@ def geodesiclm(func, jacobian, Avv, x, fvec, fjac, n,m,k,callback,info,\
         print "  nfev:       ", nfev
         print "  njev:       ", njev
         print "  naev:       ", naev
+        print "  napprox:    ", napprox
+        print "  ngrad:      ", ngrad
+        print "  ndtd:       ", ndtd
 
     return x_best
 
@@ -644,6 +683,11 @@ def lazy_wrapper(func, x0, **kwargs):
     else:
         k = 10
 
+    if kwargs.has_key('approx'):
+        approx = kwargs['approx']
+    else:
+        approx = 'None'
+
     #not sure about these
     fvec = np.empty((_m,))
     fjac = np.empty((_m,len(x0)),order = 'F')
@@ -663,7 +707,7 @@ def lazy_wrapper(func, x0, **kwargs):
                 dtd, damp_mode, niters, nfev, njev, naev, maxiter, maxfev, maxjev,
                maxaev, maxlam, minlam, artol, Cgoal, gtol, xtol, xrtol, ftol, frtol,
                converged, print_level, print_unit, imethod, iaccel, ibold, ibroyden, initialfactor,\
-               factoraccept, factorreject, avmax)
+               factoraccept, factorreject, avmax, approx)
                            #func_extra_args = func_extra_args,
                            #jacobian_extra_args = jacobian_extra_args,
                            #Avv_extra_args = Avv_extra_args)

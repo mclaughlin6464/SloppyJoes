@@ -1,6 +1,7 @@
 from SloppyJoes import lazy_wrapper
 from time import time
 import numpy as np
+from scipy import optimize
 
 
 def rosenbrock(x, A=10):
@@ -66,13 +67,14 @@ def beale(x):
 # x0 = np.array(np.random.rand(2))
 np.random.seed(int(time()))
 noise_level = 0.0
-#x0 = np.array([1.0, -1.0])
+#theta0 = np.array([1.0, -1.0])
 theta_true = np.array([3 - i for i in xrange(2)])
-x = np.linspace(1, 4, 4)
+x = np.linspace(1, 5, 100)
 #x = np.array([1.0])
 y = polynomial_fit(theta_true, x, np.zeros_like(x)) + noise_level * np.random.randn(x.shape[0])
 theta0 = (np.random.rand(theta_true.shape[0])) * 3.0
-thetaf = lazy_wrapper(polynomial_fit, theta0, args=(x,y), full_output=1, print_level=5, iaccel=1, maxiters=10000,
-                      artol=-1.0, xtol=-1, ftol=-1, avmax=2.0, k=1000, factoraccept=3.0, factorreject=5.0)
+thetaf = lazy_wrapper(rosenbrock, theta0, args=(), full_output=1, print_level=5, iaccel=1, maxiter=5000,
+                      artol=-1.0, xtol=-1, ftol=-1, avmax=2.0, k=100, factoraccept=3.0, factorreject=5.0,
+                      approx = 'LBFGS+Grad', ibold = 2, Cgoal = 1e-4, maxlam = 1e100)
 
 print thetaf

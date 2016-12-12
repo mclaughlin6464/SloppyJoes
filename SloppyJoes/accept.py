@@ -49,4 +49,8 @@ def acceptance(C, Cnew, Cbest, ibold, accepted, dtd, v, vold):
             else:
                 accepted = min(accepted - 1, -1)
 
+        if accepted < 0:
+            print 'Rejected acceptance'
+            print Cnew, C, Cbest
+
     return accepted
